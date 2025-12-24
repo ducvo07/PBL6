@@ -12,16 +12,15 @@ import {
   Chip,
   Button,
   TextField,
-  InputAdornment,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   MenuItem,
 } from '@mui/material'
-import { Search as SearchIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material'
-import { useQuery, useMutation, useLazyQuery, gql } from '@apollo/client'
-import { PRODUCT_CREATE, PRODUCT_UPDATE } from '../graphql/mutations'
+import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
+import { useMutation, useLazyQuery, gql } from '@apollo/client'
+import { PRODUCT_CREATE, PRODUCT_UPDATE, UPLOAD_PRODUCT_IMAGE } from '../graphql/mutations'
 
 interface Product {
   productId: string
@@ -31,6 +30,12 @@ interface Product {
   category?: { name: string }
   isActive: boolean
   createdAt: string
+  galleryImages?: Array<{
+    id: string
+    image: string
+    isThumbnail: boolean
+    altText: string
+  }>
 }
 
 const formatCurrency = (amount: number) => {
@@ -54,6 +59,12 @@ const GET_PRODUCTS = gql`
         name
       }
       createdAt
+      galleryImages {
+        id
+        image
+        isThumbnail
+        altText
+      }
     }
   }
 `
@@ -65,6 +76,9 @@ const Products: React.FC = () => {
     search: debouncedSearchTerm.trim() ? debouncedSearchTerm.trim() : null
   }), [debouncedSearchTerm])
   const [getProducts, { loading: queryLoading, error, data }] = useLazyQuery(GET_PRODUCTS)
+  const [createProduct] = useMutation(PRODUCT_CREATE)
+  const [updateProduct] = useMutation(PRODUCT_UPDATE)
+  const [uploadProductImage] = useMutation(UPLOAD_PRODUCT_IMAGE)
 
   // Initial load and debounced search
   useEffect(() => {
@@ -87,9 +101,10 @@ const Products: React.FC = () => {
     setEditingProductId(null)
     setFormData({
       name: '',
+      description: '',
       basePrice: '',
-      storeId: '',
       categoryId: '',
+      image: null,
       isActive: true,
     })
   }
@@ -99,9 +114,10 @@ const Products: React.FC = () => {
     setEditingProductId(product.productId)
     setFormData({
       name: product.name,
+      description: '', // Product interface doesn't have description
       basePrice: product.basePrice.toString(),
-      storeId: '', // Assuming we don't have store/category IDs in the product data
       categoryId: '',
+      image: null,
       isActive: product.isActive,
     })
     setFormErrors([])
@@ -148,14 +164,33 @@ const Products: React.FC = () => {
           variables: {
             input: {
               name: formData.name,
+              description: formData.description,
               basePrice: parseFloat(formData.basePrice),
-              storeId: formData.storeId,
-              categoryId: formData.categoryId,
+              categoryId: parseInt(formData.categoryId),
               isActive: formData.isActive,
             }
           }
         })
         if (result.data?.productCreate?.success) {
+          const newProduct = result.data.productCreate.product
+          
+          // Upload image if provided
+          if (formData.image) {
+            try {
+              await uploadProductImage({
+                variables: {
+                  productId: newProduct.product_id,
+                  image: formData.image,
+                  isThumbnail: true,
+                  altText: `${formData.name} image`
+                }
+              })
+            } catch (uploadErr: any) {
+              console.error('Image upload failed:', uploadErr)
+              // Don't fail the whole operation for image upload error
+            }
+          }
+          
           setOpenModal(false)
           getProducts({ variables: queryVariables })
         } else {
@@ -175,9 +210,10 @@ const Products: React.FC = () => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
+    description: '',
     basePrice: '',
-    storeId: '',
     categoryId: '',
+    image: null as File | null,
     isActive: true,
   })
   const [formErrors, setFormErrors] = useState<string[]>([])
@@ -227,6 +263,7 @@ const Products: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
+              <TableCell>Image</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Price</TableCell>
               <TableCell>Store</TableCell>
@@ -240,6 +277,19 @@ const Products: React.FC = () => {
             {products.map((product: Product) => (
               <TableRow key={product.productId}>
                 <TableCell>{product.productId}</TableCell>
+                <TableCell>
+                  {product.galleryImages && product.galleryImages.length > 0 ? (
+                    <img
+                      src={`http://localhost:8000${product.galleryImages.find(img => img.isThumbnail)?.image || product.galleryImages[0].image}`}
+                      alt={product.name}
+                      style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
+                    />
+                  ) : (
+                    <div style={{ width: '50px', height: '50px', backgroundColor: '#f5f5f5', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                      No Image
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>{product.name}</TableCell>
                 <TableCell>{formatCurrency(product.basePrice)}</TableCell>
                 <TableCell>{product.store?.name || 'N/A'}</TableCell>
@@ -288,6 +338,18 @@ const Products: React.FC = () => {
 
           <TextField
             margin="dense"
+            label="Description"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={3}
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            required
+          />
+
+          <TextField
+            margin="dense"
             label="Base Price"
             type="number"
             fullWidth
@@ -301,21 +363,28 @@ const Products: React.FC = () => {
             <>
               <TextField
                 margin="dense"
-                label="Store ID"
-                fullWidth
-                variant="outlined"
-                value={formData.storeId}
-                onChange={(e) => handleInputChange('storeId', e.target.value)}
-              />
-
-              <TextField
-                margin="dense"
                 label="Category ID"
                 fullWidth
                 variant="outlined"
                 value={formData.categoryId}
                 onChange={(e) => handleInputChange('categoryId', e.target.value)}
+                required
               />
+
+              <Box margin="dense" sx={{ mt: 2, mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>Product Image</Typography>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleInputChange('image', e.target.files ? e.target.files[0] : null)}
+                  style={{
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    width: '100%'
+                  }}
+                />
+              </Box>
             </>
           )}
 

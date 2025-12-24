@@ -402,6 +402,21 @@ class UpdateStoreImages(Mutation):
             return UpdateStoreImages(success=False, message="Không tìm thấy cửa hàng", store=None)
 
 
+class DeleteStore(Mutation):
+    class Arguments:
+        store_id = ID(required=True)
+    success = Boolean()
+    message = String()
+    @staticmethod
+    def mutate(root, info, store_id):
+        try:
+            store = Store.objects.get(store_id=store_id)
+            store.delete()
+            return DeleteStore(success=True, message="Xóa cửa hàng thành công")
+        except Store.DoesNotExist:
+            return DeleteStore(success=False, message="Không tìm thấy cửa hàng")
+
+
 # ===================================================================
 # ========================== ALL MUTATIONS ==========================
 # ===================================================================
@@ -409,6 +424,7 @@ class UpdateStoreImages(Mutation):
 class StoreMutation(graphene.ObjectType):
     create_store = CreateStore.Field()
     update_store = UpdateStore.Field()
+    delete_store = DeleteStore.Field()
     update_store_images = UpdateStoreImages.Field()
 
     create_address_store = CreateAddressStore.Field()

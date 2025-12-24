@@ -1,6 +1,7 @@
-import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client'
+import { ApolloClient, InMemoryCache } from '@apollo/client'
+import { createUploadLink } from 'apollo-upload-client'
 
-const httpLink = createHttpLink({
+const uploadLink = createUploadLink({
   uri: 'http://localhost:8000/graphql/', // Adjust if backend is on different port
 })
 
@@ -16,6 +17,6 @@ const httpLink = createHttpLink({
 // })
 
 export const client = new ApolloClient({
-  link: httpLink, // from([authLink, httpLink]),
+  link: uploadLink, // from([authLink, uploadLink]),
   cache: new InMemoryCache(),
 })

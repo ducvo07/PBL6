@@ -12,15 +12,13 @@ import {
   Paper,
   Button,
   TextField,
-  InputAdornment,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from '@mui/material'
-import { Search as SearchIcon } from '@mui/icons-material'
-import { useQuery, useMutation, useLazyQuery, gql } from '@apollo/client'
-import { STORE_CREATE, STORE_UPDATE } from '../graphql/mutations'
+import { useMutation, useLazyQuery, gql } from '@apollo/client'
+import { STORE_CREATE, STORE_UPDATE, STORE_DELETE } from '../graphql/mutations'
 
 interface Store {
   storeId: string
@@ -56,6 +54,7 @@ const Stores: React.FC = () => {
   const [getStores, { loading: queryLoading, error, data }] = useLazyQuery(GET_STORES)
   const [createStore] = useMutation(STORE_CREATE)
   const [updateStore] = useMutation(STORE_UPDATE)
+  const [deleteStore] = useMutation(STORE_DELETE)
 
   // Modal / form state
   const [openModal, setOpenModal] = useState(false)
@@ -64,7 +63,6 @@ const Stores: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', location: '', isActive: true, province: '', ward: '', hamlet: '', detail: '' })
   const [formErrors, setFormErrors] = useState<string[]>([])
   const [submitLoading, setSubmitLoading] = useState(false)
-  const [showRaw, setShowRaw] = useState(false)
 
   useEffect(() => { getStores({ variables: { search: null } }) }, [getStores])
   useEffect(() => {
@@ -85,7 +83,7 @@ const Stores: React.FC = () => {
     setFormErrors([])
     try {
       if (isEditMode && editingStoreId) {
-        const res = await updateStore({ variables: { store_id: editingStoreId, input: {
+        const res = await updateStore({ variables: { storeId: editingStoreId, input: {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
@@ -136,9 +134,6 @@ const Stores: React.FC = () => {
         }}>
           Add Store
         </Button>
-        <Button variant="outlined" color="secondary" onClick={() => setShowRaw(prev => !prev)} style={{ marginLeft: 8 }}>
-          {showRaw ? 'Hide Raw' : 'Show Raw'}
-        </Button>
       </Box>
       <Box mb={3}>
         <input
@@ -178,18 +173,25 @@ const Stores: React.FC = () => {
                   <Button size="small" variant="outlined" onClick={() => {
                     setIsEditMode(true)
                     setEditingStoreId(store.storeId)
-                    setFormData({ name: store.name, email: store.email || '', phone: store.phone || '', location: store.location || '', isActive: store.isActive })
+                    setFormData({ name: store.name, email: store.email || '', phone: store.phone || '', location: store.location || '', isActive: store.isActive, province: '', ward: '', hamlet: '', detail: '' })
                     setFormErrors([])
                     setOpenModal(true)
                   }}>
                     Edit
                   </Button>
                   <Button size="small" color="error" style={{ marginLeft: 8 }} onClick={async () => {
-                    // Soft-delete: set isActive to false
+                    if (window.confirm('Bạn có chắc chắn muốn xóa cửa hàng này?')) {
                       try {
-                      await updateStore({ variables: { store_id: store.storeId, input: { is_active: false } } })
-                      getStores({ variables: queryVariables })
-                    } catch (err) { console.error(err) }
+                        const res = await deleteStore({ variables: { storeId: store.storeId } })
+                        if (res.data?.delete_store?.success) {
+                          getStores({ variables: queryVariables })
+                        } else {
+                          alert(res.data?.delete_store?.message || 'Xóa thất bại')
+                        }
+                      } catch (err: any) {
+                        alert(err.message || 'Xóa thất bại')
+                      }
+                    }
                   }}>
                     Delete
                   </Button>
@@ -199,14 +201,6 @@ const Stores: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
-      {showRaw && (
-        <Box mt={2}>
-          <Typography variant="subtitle1">Raw stores JSON</Typography>
-          <Box component="pre" sx={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', backgroundColor: '#f5f5f5', p: 2 }}>
-            {JSON.stringify(stores, null, 2)}
-          </Box>
-        </Box>
-      )}
       
       <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{isEditMode ? 'Edit Store' : 'Add New Store'}</DialogTitle>

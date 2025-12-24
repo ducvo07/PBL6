@@ -116,6 +116,23 @@ export const PRODUCT_DELETE = gql`
   }
 `
 
+export const UPLOAD_PRODUCT_IMAGE = gql`
+  mutation UploadProductImage($productId: ID!, $image: Upload!, $isThumbnail: Boolean, $altText: String, $displayOrder: Int) {
+    uploadProductImage(productId: $productId, image: $image, isThumbnail: $isThumbnail, altText: $altText, displayOrder: $displayOrder) {
+      productImage {
+        id
+        image
+        isThumbnail
+        altText
+        displayOrder
+      }
+      errors {
+        message
+      }
+    }
+  }
+`
+
 // Store Mutations
 export const STORE_CREATE = gql`
   mutation StoreCreate($input: StoreCreateInput!) {
@@ -140,6 +157,15 @@ export const STORE_UPDATE = gql`
         name
         email
       }
+      message
+    }
+  }
+`
+
+export const STORE_DELETE = gql`
+  mutation StoreDelete($storeId: ID!) {
+    deleteStore(storeId: $storeId) {
+      success
       message
     }
   }
