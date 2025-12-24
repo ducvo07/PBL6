@@ -28,21 +28,22 @@ const Login: React.FC = () => {
     try {
       await login(username, password)
       navigate('/admin')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+    } catch (err: any) {
+      setError(err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Container component="main" maxWidth="sm" sx={{ marginLeft: '400px' }}>
       <Box
         sx={{
-          marginTop: 8,
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
