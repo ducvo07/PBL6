@@ -1,0 +1,31 @@
+/* Custom input styles used by admin pages */
+.custom-input {
+  padding: 10px 14px;
+  border: 1px solid #000;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 300px;
+  background-color: #ffffff; /* white background */
+  color: #333;
+  outline: none;
+}
+.custom-input:focus {
+  border-color: #000;
+  box-shadow: none;
+}
+
+/* Apply to MUI TextField inside a container with .custom-mui */
+.custom-mui .MuiOutlinedInput-root {
+  background-color: #ffffff;
+}
+.custom-mui .MuiOutlinedInput-notchedOutline {
+  border-color: #000;
+}
+.custom-mui .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #000;
+  box-shadow: none;
+}
+
+.custom-mui .MuiInputBase-input {
+  color: #000;
+}
